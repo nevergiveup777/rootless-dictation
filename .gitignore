@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+bin/
+__pycache__/
+test-results/
+stt/src
+stt/out
+*.wav
+*.log
+*.Zone.Identifier

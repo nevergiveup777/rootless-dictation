@@ -1,0 +1,11 @@
+{
+  "name": "Rootless Dictation (dev)",
+  "author": "nevergiveup777",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["dictation", "speech-to-text", "chat", "accessibility", "rootless"],
+    "description": "Hold a button combo, speak, release: your words are typed into game chat. Runs without root; speech recognition is offline (whisper.cpp).",
+    "image": ""
+  }
+}
