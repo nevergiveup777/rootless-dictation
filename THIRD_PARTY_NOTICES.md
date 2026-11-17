@@ -24,8 +24,8 @@ Rootless Dictation is an independent project. It is not affiliated with or endor
 
 ## OpenAI Whisper model weights (MIT)
 
-- `ggml-base.bin`, converted by whisper.cpp from OpenAI's Whisper `base` model: <https://github.com/openai/whisper> (MIT).
-- Not shipped in this ZIP. It is used only after its SHA-256 is verified.
+- `models/ggml-base.bin`: OpenAI's Whisper `base` model (<https://github.com/openai/whisper>; "Whisper's code and model weights are released under the MIT License"), converted to ggml format by the whisper.cpp project and downloaded from <https://huggingface.co/ggerganov/whisper.cpp>. It is used only after its SHA-256 is verified.
+- Licence: `licenses/openai-whisper-MIT.txt`, Copyright (c) 2022 OpenAI.
 
 ## Silero VAD model (MIT)
 

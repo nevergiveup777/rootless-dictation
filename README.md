@@ -4,7 +4,7 @@ Hold a button combo on your Steam Deck, speak, release: your words are typed int
 
 - **No root.** `plugin.json` has `"flags": []`, so Decky runs the plugin as your normal user. It never uses sudo and never changes device permissions.
 - **Offline speech recognition** with whisper.cpp. Your voice never leaves the Deck.
-- **No self-updater, no telemetry.** The only download is the speech model, once and with your consent (coming soon).
+- **No downloads, no self-updater, no telemetry.** Everything, including the speech models, is inside the ZIP (about 150 MB). The plugin never uses the internet.
 - English and Español. Small and readable on purpose.
 
 Independent project, MIT licensed. Not affiliated with or endorsed by Decktation, Valve, Blizzard or the Decky Loader team. See `THIRD_PARTY_NOTICES.md`.
@@ -44,7 +44,7 @@ The channel word only counts as the first word, so a normal sentence that starts
 
 ## Status
 
-Development step 1 of M1 (test version 0.3.5). It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED. It still expects the speech model in `~/decktation-rootless-poc/ggml-base.bin`.
+Development step 1 of M1 (test version 0.3.5). It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED.
 
 ## Building
 
@@ -60,10 +60,15 @@ git clone https://github.com/ggml-org/whisper.cpp stt/src/whisper.cpp
 git -C stt/src/whisper.cpp checkout f24588a272ae8e23280d9c220536437164e6ed28
 bash stt/build_whisper.sh
 
+# The speech model (148 MB), the same file whisper.cpp's models/download-ggml-model.sh fetches
+mkdir -p stt/models
+curl -L -o stt/models/ggml-base.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+echo "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe  stt/models/ggml-base.bin" | sha256sum -c
+
 # 3. The ZIP for Decky's "Install Plugin from ZIP"
 python3 -I build_zip.py
 ```
 
-`build_zip.py` stops if `whisper-cli` or the voice detection model (taken from the whisper.cpp source tree) doesn't match its pinned SHA-256. The model always matches. Your own `whisper-cli` build will probably not match byte for byte, because compilers differ. If you trust your build, put its SHA-256 in `build_zip.py`, `main.py` and `engine/ptt_pipeline.py` (all three check it). The speech model `ggml-base.bin` is not in the ZIP yet.
+`build_zip.py` stops if `whisper-cli`, the speech model or the voice detection model (taken from the whisper.cpp source tree) doesn't match its pinned SHA-256. The two models always match. Your own `whisper-cli` build will probably not match byte for byte, because compilers differ. If you trust your build, put its SHA-256 in `build_zip.py`, `main.py` and `engine/ptt_pipeline.py` (all three check it).
 
 Never build as root. The template's `.vscode/` helper scripts use sudo and are not part of this project.

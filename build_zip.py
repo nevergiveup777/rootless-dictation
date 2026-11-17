@@ -13,7 +13,7 @@ Standard library only. Refuses to run as root. Before packaging it checks that:
 - the Python code does not call sudo, pkexec, polkit, systemctl, chmod/chown,
   setuid, udev or Decky's local server;
 - whisper-cli matches its pinned SHA-256 and is not setuid/setgid;
-- the voice detection model matches its pinned SHA-256.
+- the voice detection and speech models match their pinned SHA-256.
 Writes out/RootlessDictation-<version>[-release].zip and its .sha256. The
 build channel goes into the ZIP as build.json; it is not a file in the repo.
 """
@@ -33,10 +33,13 @@ WHISPER_SHA256 = "36d865e9bc737838df027a3dc30760d3d6f6bf5dab220a214407e75d905d60
 # (models/for-tests-silero-v6.2.0-ggml.bin), identical to ggml-org/whisper-vad on Hugging Face.
 VAD_SRC = os.path.join(HERE, "stt", "src", "whisper.cpp", "models", "for-tests-silero-v6.2.0-ggml.bin")
 VAD_SHA256 = "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987"
+# OpenAI Whisper "base" in ggml format, as downloaded by whisper.cpp's models/download-ggml-model.sh.
+MODEL_SRC = os.path.join(HERE, "stt", "models", "ggml-base.bin")
+MODEL_SHA256 = "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"
 
 FILES = ["plugin.json", "package.json", "main.py", "dist/index.js", "LICENSE", "THIRD_PARTY_NOTICES.md",
          "README.md", "engine/ptt_pipeline.py", "engine/hid_ptt_probe.py", "engine/xtest_type.py", "engine/overlay.py",
-         "licenses/whisper.cpp-MIT.txt", "licenses/silero-vad-MIT.txt", "licenses/decky-api-LGPL-2.1.txt",
+         "licenses/whisper.cpp-MIT.txt", "licenses/silero-vad-MIT.txt", "licenses/openai-whisper-MIT.txt", "licenses/decky-api-LGPL-2.1.txt",
          "licenses/decky-plugin-template-BSD-3-Clause.txt"]
 PY_FILES = [f for f in FILES if f.endswith(".py")]
 FORBIDDEN_PY = re.compile(r"\b(sudo|pkexec|polkit|systemctl|chmod|chown|setuid|setgid|seteuid|udevadm|"
@@ -99,8 +102,10 @@ def audit():
         fail("whisper-cli has a setuid/setgid bit")
     if not os.path.isfile(VAD_SRC) or sha256(VAD_SRC) != VAD_SHA256:
         fail(f"voice detection model missing or not matching its pinned SHA-256: {VAD_SRC}")
+    if not os.path.isfile(MODEL_SRC) or sha256(MODEL_SRC) != MODEL_SHA256:
+        fail(f"speech model missing or not matching its pinned SHA-256: {MODEL_SRC}")
     print(f"audit OK: flags {pj.get('flags')}, no remote_binary, panel and {len(PY_FILES)} Python files clean, "
-          "whisper-cli and voice detection model pinned, whisper-cli not setuid")
+          "whisper-cli and both models pinned, whisper-cli not setuid")
     return pkg["version"]
 
 
@@ -132,6 +137,7 @@ def main():
             add(z, os.path.join(HERE, rel), rel, 0o755 if rel.startswith("engine/") else 0o644)
         add(z, WHISPER_SRC, "bin/whisper-cli", 0o755)
         add(z, VAD_SRC, "models/ggml-silero-v6.2.0.bin", 0o644)
+        add(z, MODEL_SRC, "models/ggml-base.bin", 0o644)
         add_bytes(z, json.dumps({"channel": channel}).encode() + b"\n", "build.json", 0o644)
     digest = sha256(out)
     with open(out + ".sha256", "w") as f:

@@ -32,9 +32,10 @@ SETTINGS_FILE = os.path.join(SETTINGS_DIR, "settings.json")
 ENGINE = os.path.join(PLUGIN_DIR, "engine", "ptt_pipeline.py")
 WHISPER = os.path.join(PLUGIN_DIR, "bin", "whisper-cli")
 VAD_MODEL = os.path.join(PLUGIN_DIR, "models", "ggml-silero-v6.2.0.bin")  # voice detection, shipped in the ZIP
-# Step 1: the model is still the one copied by hand during the proof of concept.
-# A consented, SHA-256-pinned first-use download into RUNTIME_DIR comes later.
-MODEL_CANDIDATES = [os.path.join(RUNTIME_DIR, "models", "ggml-base.bin"),
+# The speech model ships in the ZIP (no download code at all). The other places are
+# only for older test installs; whichever is used must match its pinned SHA-256.
+MODEL_CANDIDATES = [os.path.join(PLUGIN_DIR, "models", "ggml-base.bin"),
+                    os.path.join(RUNTIME_DIR, "models", "ggml-base.bin"),
                     os.path.join(HOME, "decktation-rootless-poc", "ggml-base.bin")]
 PINNED_SHA256 = {
     "whisper-cli": "36d865e9bc737838df027a3dc30760d3d6f6bf5dab220a214407e75d905d60bd",
@@ -567,7 +568,7 @@ class Plugin:
         model = find_model()
         ok = model is not None and sha256(model) == PINNED_SHA256["ggml-base.bin"]
         add("Speech model", ok, f"{model} matches its pinned SHA-256" if ok
-            else ("not found (copy ggml-base.bin to ~/decktation-rootless-poc/)" if model is None
+            else ("not found (it should be in the plugin's models folder; reinstall the plugin)" if model is None
                   else f"{model} does not match its pinned SHA-256"))
         ok = os.path.isfile(VAD_MODEL) and sha256(VAD_MODEL) == PINNED_SHA256["ggml-silero-v6.2.0.bin"]
         add("Voice detection model", ok, "ggml-silero-v6.2.0.bin matches its pinned SHA-256" if ok
