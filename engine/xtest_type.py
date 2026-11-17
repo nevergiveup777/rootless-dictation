@@ -22,10 +22,12 @@ open its menu.
 Mechanism: synthetic key events through the XTEST extension of the game's
 Xwayland display (default :1), the same thing `xdotool` does. Paste mode
 puts the text on that display's CLIPBOARD from a hidden Tk window, then
-sends Ctrl+V. It waits until the game has actually read the clipboard (plus
-PASTE_MARGIN), or PASTE_MAX_WAIT if no read is seen. No device nodes, no
-uinput, no root. Your previous clipboard content on the game display is not
-restored.
+sends Ctrl+V. On the Deck the text is read once as soon as we take the
+clipboard, before Ctrl+V, and not again after it. When that early read is
+seen, Return follows PREFETCHED_WAIT after Ctrl+V. Otherwise it waits for a
+read after Ctrl+V (plus PASTE_MARGIN), or PASTE_MAX_WAIT if none is seen.
+No device nodes, no uinput, no root. Your previous clipboard content on the
+game display is not restored.
 
     /usr/bin/python3 -I xtest_type.py --clipboard-check   # clipboard round trip only, no keys
 """
@@ -40,6 +42,7 @@ XK_RETURN, XK_SHIFT_L, XK_CONTROL_L, XK_V, XK_ESCAPE = 0xFF0D, 0xFFE1, 0xFFE3, 0
 OPEN_CHAT_WAIT = 0.4   # Return -> chat box open and focused (proven since 0.1)
 PASTE_MAX_WAIT = 2.0   # the old fixed wait after Ctrl+V; now only used if no clipboard read is seen
 PASTE_MARGIN = 0.25    # after the game has read the clipboard, before Return (upstream waits 0.3 s)
+PREFETCHED_WAIT = 0.3  # Ctrl+V -> Return when the text was already read before Ctrl+V (upstream: 0.3 s)
 SEND_TO_ESC = 0.3      # Return (send) -> Esc (close the chat box); key events stay in order
 CHECK_TEXT = "/p Hello, world! ¿Sí? Ünïcödé ñ á — €"
 
@@ -133,9 +136,10 @@ def pump(tk, seconds):
         time.sleep(0.02)
 
 
-def own_clipboard(display, text, reads):
+def own_clipboard(display, text, reads, lost=None):
     """Own CLIPBOARD on `display` from a hidden Tk window and serve `text`.
     Each time another client (the game) reads it, the time is added to `reads`.
+    If another program takes the clipboard over, the time is added to `lost`.
     Tk serves both STRING and UTF8_STRING from this handler, as for `clipboard append`."""
     import tkinter
     tk = tkinter.Tk(screenName=display)
@@ -147,7 +151,14 @@ def own_clipboard(display, text, reads):
         return text[start:start + int(length)]
 
     tk.selection_handle(serve, selection="CLIPBOARD")
-    tk.selection_own(selection="CLIPBOARD")
+    tk.owned_at, tk.watch_error = time.monotonic(), None
+    if lost is not None:
+        try:  # only for the log; pasting works without it
+            tk.selection_own(selection="CLIPBOARD", command=lambda: lost.append(time.monotonic()))
+        except Exception as e:  # tkinter.TclError
+            tk.watch_error = str(e) or type(e).__name__
+    if lost is None or tk.watch_error:
+        tk.selection_own(selection="CLIPBOARD")
     tk.update()
     return tk
 
@@ -166,9 +177,9 @@ def wait_for_read(tk, reads, since, seconds):
 
 def clipboard_check(display):
     """Own the clipboard and read it back from a second process (UTF8_STRING and STRING). No keys."""
-    reads = []
+    reads, lost = [], []
     try:
-        tk = own_clipboard(display, CHECK_TEXT, reads)
+        tk = own_clipboard(display, CHECK_TEXT, reads, lost)
     except Exception as e:  # tkinter.TclError, ImportError
         print(f"BLOCKER: cannot own the CLIPBOARD on {display} via Tk: {e}")
         return 2
@@ -190,6 +201,8 @@ def clipboard_check(display):
     want_utf8, want_string = ascii(CHECK_TEXT), ascii(CHECK_TEXT.encode("latin-1", "replace").decode("latin-1"))
     print(f"reader got UTF8_STRING {got[0] if got else '-'}; STRING {got[1] if len(got) > 1 else '-'}; "
           f"owner saw {len(reads)} read(s)")
+    print(f"clipboard take-over watch: {'NOT available: ' + tk.watch_error if tk.watch_error else 'on'}"
+          f"{f'; another program took the clipboard over {lost[0] - tk.owned_at:.2f} s after we set it' if lost else ''}")
     if got[:1] == [want_utf8] and reads:
         print(f"CLIPBOARD CHECK OK: the text came back exactly as UTF8_STRING, and each read was seen"
               f"{'; STRING is the Latin-1 form' if got[1:2] == [want_string] else '; STRING differs'}")
@@ -270,10 +283,10 @@ def main():
         return 0
 
     tk = None
-    reads = []
+    reads, lost = [], []
     if args.paste:
         try:
-            tk = own_clipboard(args.display, text, reads)
+            tk = own_clipboard(args.display, text, reads, lost)
         except Exception as e:  # tkinter.TclError, ImportError
             print(f"BLOCKER: cannot own the CLIPBOARD on {args.display} via Tk: {e}")
             return 2
@@ -298,17 +311,26 @@ def main():
         kb.tap(ret_kc)
         pump(tk, OPEN_CHAT_WAIT)
     if args.paste:
-        before = len(reads)
+        before = list(reads)
         pasted_at = time.monotonic()
         kb.tap(special["v"][0], modifiers=(special["Control_L"][0],))
-        read_at = wait_for_read(tk, reads, pasted_at, PASTE_MAX_WAIT)  # Wine reads the clipboard asynchronously
-        if read_at is not None:
-            pump(tk, PASTE_MARGIN)  # keep serving while the game inserts the text
-            print(f"TIMING: the game read the clipboard {read_at - pasted_at:.2f} s after Ctrl+V")
+        took = (f"; another program took the clipboard over {lost[0] - tk.owned_at:.2f} s after we set it"
+                if lost else "")
+        if before:
+            # Read already, right after we took the clipboard: the game pastes that copy without reading again.
+            pump(tk, PREFETCHED_WAIT)
+            after = sum(1 for t in reads if t >= pasted_at)
+            print(f"TIMING: the text was read {before[0] - tk.owned_at:.2f} s after we set the clipboard, "
+                  f"before Ctrl+V; Return {PREFETCHED_WAIT:.1f} s after Ctrl+V ({after} read(s) after it){took}")
         else:
-            pump(tk, 0.3)  # the old wait before Return
-            print(f"TIMING: no clipboard read seen within {PASTE_MAX_WAIT:.1f} s after Ctrl+V"
-                  f"{f' ({before} read(s) before Ctrl+V)' if before else ''}; used the old waits")
+            read_at = wait_for_read(tk, reads, pasted_at, PASTE_MAX_WAIT)  # Wine reads the clipboard asynchronously
+            if read_at is not None:
+                pump(tk, PASTE_MARGIN)  # keep serving while the game inserts the text
+                print(f"TIMING: the game read the clipboard {read_at - pasted_at:.2f} s after Ctrl+V{took}")
+            else:
+                pump(tk, 0.3)  # the old wait before Return
+                print(f"TIMING: no clipboard read seen within {PASTE_MAX_WAIT:.1f} s after Ctrl+V; "
+                      f"used the old waits{took}")
     else:
         shift_kc = special["Shift_L"][0]
         for _, (kc, shift) in plan:

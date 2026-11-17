@@ -1,6 +1,6 @@
 {
   "name": "rootless-dictation",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Push-to-talk dictation into game chat for Steam Deck, running without root.",
   "type": "module",
   "scripts": {

@@ -44,7 +44,7 @@ The channel word only counts as the first word, so a normal sentence that starts
 
 ## Status
 
-Development step 1 of M1 (test version 0.3.5). It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED.
+Development step 1 of M1 (test version 0.3.6). It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED.
 
 ## Building
 
