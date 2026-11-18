@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Decktation Rootless - Phase 1, probes A1/A2: text entry via X11 XTEST as `deck`.
+"""Rootless Dictation: text entry into the game via X11 XTEST, as the normal `deck` user.
 
 Run on the Steam Deck as the normal `deck` user, in Gaming Mode, with
-WoW Forever focused and the Quick Access Menu closed:
+the game in front and the Quick Access Menu closed:
 
     /usr/bin/python3 -I xtest_type.py --dry-run               # check only, inject nothing
-    /usr/bin/python3 -I xtest_type.py --open-chat             # A1: type "Hello World"
-    /usr/bin/python3 -I xtest_type.py --open-chat --paste     # A2: paste UTF-8 text
+    /usr/bin/python3 -I xtest_type.py --open-chat             # type "Hello World" (ASCII keys)
+    /usr/bin/python3 -I xtest_type.py --open-chat --paste     # paste UTF-8 text (what the plugin uses)
     /usr/bin/python3 -I xtest_type.py --open-chat --paste --text "/p rootless test" --send-return
 
 Default behaviour leaves the text as an UNSENT draft. Nothing is submitted
@@ -15,7 +15,7 @@ harmless message, e.g. "/p ..." while not in a party, so the game just answers
 that you are not in a party).
 
 --close-after-send presses Esc after sending, for games whose chat box stays
-open after sending (WoW Forever on the user's Deck, where B closes it). Do not
+open after sending (WoW Forever, where B closes it). Do not
 use it if the chat box closes by itself: Esc would then reach the game and may
 open its menu.
 
@@ -45,6 +45,16 @@ PASTE_MARGIN = 0.25    # after the game has read the clipboard, before Return (u
 PREFETCHED_WAIT = 0.3  # Ctrl+V -> Return when the text was already read before Ctrl+V (upstream: 0.3 s)
 SEND_TO_ESC = 0.3      # Return (send) -> Esc (close the chat box); key events stay in order
 CHECK_TEXT = "/p Hello, world! ¿Sí? Ünïcödé ñ á — €"
+STEAM_UI_APP = 769     # GAMESCOPE_FOCUSED_APP of Steam's own interface (library, menus, Quick Access Menu)
+
+
+def app_in_front(expect, focus):
+    """expect: None (no check), "game" (any app except Steam's interface), or an app ID as text."""
+    if expect is None:
+        return True
+    if expect == "game":
+        return any(app not in (0, STEAM_UI_APP) for app in focus.values())
+    return int(expect) in focus.values()
 
 
 def load_x():
@@ -214,7 +224,7 @@ def clipboard_check(display):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--display", default=":1", help="game Xwayland display (default :1)")
-    ap.add_argument("--paste", action="store_true", help="A2: clipboard + Ctrl+V instead of typing")
+    ap.add_argument("--paste", action="store_true", help="clipboard + Ctrl+V instead of typing")
     ap.add_argument("--text", help="text to enter (default depends on mode)")
     ap.add_argument("--open-chat", action="store_true", help="press Return first to open chat")
     ap.add_argument("--send-return", action="store_true", help="press Return afterwards to try to SEND")
@@ -223,14 +233,17 @@ def main():
     ap.add_argument("--countdown", type=int, default=10, help="seconds to focus the game (default 10)")
     ap.add_argument("--key-delay", type=float, default=0.03, help="seconds between keys (default 0.03)")
     ap.add_argument("--dry-run", action="store_true", help="check everything, inject nothing")
-    ap.add_argument("--expect-app", type=int,
-                    help="abort without injecting unless gamescope reports this app id as focused")
+    ap.add_argument("--expect-app",
+                    help="abort without injecting unless this app ID is focused; "
+                         "'game' means any app except Steam's own interface")
     ap.add_argument("--clipboard-check", action="store_true",
                     help="only own the clipboard and read it back from a second process; no keys")
     args = ap.parse_args()
 
     if os.geteuid() == 0:
         sys.exit("Refusing to run as root. Run this as the normal deck user.")
+    if args.expect_app is not None and not (args.expect_app == "game" or args.expect_app.isdigit()):
+        sys.exit("--expect-app takes 'game' or an app ID")
     if args.clipboard_check:
         return clipboard_check(args.display)
     text = args.text if args.text is not None else (
@@ -295,12 +308,13 @@ def main():
     if args.send_return:
         print("WARNING: --send-return will try to SUBMIT the message. Ctrl+C now to abort.")
     for left in range(args.countdown, 0, -1):
-        print(f"  injecting in {left} s - focus WoW Forever, close the Quick Access Menu", flush=True)
+        print(f"  injecting in {left} s - bring the game to the front, close the Quick Access Menu", flush=True)
         pump(tk, 1.0)
     focus = focused_apps(x11)
     print(f"GAMESCOPE_FOCUSED_APP per display: {focus}")
-    if args.expect_app is not None and args.expect_app not in focus.values():
-        print(f"ABORT: app {args.expect_app} is not focused; nothing was injected.")
+    if not app_in_front(args.expect_app, focus):
+        print(f"ABORT: {'no game' if args.expect_app == 'game' else f'app {args.expect_app}'} "
+              f"is in front (focused: {focus}); nothing was injected.")
         if tk is not None:
             tk.destroy()
         x11.XCloseDisplay(dpy)

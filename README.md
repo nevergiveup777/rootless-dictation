@@ -1,13 +1,26 @@
-# Rootless Dictation (development version)
+# Rootless Dictation
 
 Hold a button combo on your Steam Deck, speak, release: your words are typed into the game's chat.
 
 - **No root.** `plugin.json` has `"flags": []`, so Decky runs the plugin as your normal user. It never uses sudo and never changes device permissions.
-- **Offline speech recognition** with whisper.cpp. Your voice never leaves the Deck.
-- **No downloads, no self-updater, no telemetry.** Everything, including the speech models, is inside the ZIP (about 150 MB). The plugin never uses the internet.
+- **Offline speech recognition** with whisper.cpp. Your voice never leaves the Deck. Each recording is kept only in memory and deleted right after it is turned into text, and the log never contains what you said.
+- **No downloads, no self-updater, no telemetry.** Everything, including the speech models, is inside the ZIP (about 140 MB). The plugin never uses the internet.
 - English and Español. Small and readable on purpose.
 
+Made for World of Warcraft's chat. It is tested with WoW Forever on a Steam Deck OLED.
+
 Independent project, MIT licensed. Not affiliated with or endorsed by Decktation, Valve, Blizzard or the Decky Loader team. See `THIRD_PARTY_NOTICES.md`.
+
+## Install
+
+You need a Steam Deck with [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader). Rootless Dictation is not in the Decky store, so you install the ZIP yourself:
+
+1. In Gaming Mode, open Decky in the Quick Access Menu, then its settings (the gear). Under **General**, turn on **Developer mode**.
+2. On the Deck, download `RootlessDictation-<version>.zip` from the [latest release](https://github.com/nevergiveup777/rootless-dictation/releases/latest), for example with a web browser in Desktop Mode. Take that file, not the "Source code" archives: those are not the plugin.
+3. Back in Gaming Mode, open Decky's settings, then **Developer**. Under **Third-Party Plugins**, choose **Install Plugin from ZIP File** and pick the ZIP.
+4. Open **Rootless Dictation** in the Quick Access Menu and run the **Self-test**. Every line should be green.
+
+To update, install the new ZIP the same way; it replaces the old version. To remove the plugin, uninstall it from Decky's settings, on the **Plugins** page.
 
 ## How to use
 
@@ -42,9 +55,11 @@ The channel word only counts as the first word, so a normal sentence that starts
 
 **Mute game sound while talking** (on by default) silences the Deck's sound output only while the microphone is listening, because game sound makes speech recognition much worse. The sound comes back about half a second after you release, and also after a crash.
 
+Text is typed only while a game is in front, never into Steam's own menus or the Quick Access Menu.
+
 ## Status
 
-Development step 1 of M1 (test version 0.3.6). It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED.
+Version 0.4.0, the first public version. It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED. Other games may work if Enter opens their chat and Ctrl+V pastes into it, but they are untested.
 
 ## Building
 
@@ -65,8 +80,9 @@ mkdir -p stt/models
 curl -L -o stt/models/ggml-base.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
 echo "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe  stt/models/ggml-base.bin" | sha256sum -c
 
-# 3. The ZIP for Decky's "Install Plugin from ZIP"
-python3 -I build_zip.py
+# 3. The ZIP for Decky's "Install Plugin from ZIP File" (--release: the public build;
+#    without it you get a test build with a "Detailed log" switch that logs what you say)
+python3 -I build_zip.py --release
 ```
 
 `build_zip.py` stops if `whisper-cli`, the speech model or the voice detection model (taken from the whisper.cpp source tree) doesn't match its pinned SHA-256. The two models always match. Your own `whisper-cli` build will probably not match byte for byte, because compilers differ. If you trust your build, put its SHA-256 in `build_zip.py`, `main.py` and `engine/ptt_pipeline.py` (all three check it).

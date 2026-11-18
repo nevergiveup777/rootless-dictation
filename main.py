@@ -32,19 +32,15 @@ SETTINGS_FILE = os.path.join(SETTINGS_DIR, "settings.json")
 ENGINE = os.path.join(PLUGIN_DIR, "engine", "ptt_pipeline.py")
 WHISPER = os.path.join(PLUGIN_DIR, "bin", "whisper-cli")
 VAD_MODEL = os.path.join(PLUGIN_DIR, "models", "ggml-silero-v6.2.0.bin")  # voice detection, shipped in the ZIP
-# The speech model ships in the ZIP (no download code at all). The other places are
-# only for older test installs; whichever is used must match its pinned SHA-256.
-MODEL_CANDIDATES = [os.path.join(PLUGIN_DIR, "models", "ggml-base.bin"),
-                    os.path.join(RUNTIME_DIR, "models", "ggml-base.bin"),
-                    os.path.join(HOME, "decktation-rootless-poc", "ggml-base.bin")]
+# The speech model ships in the ZIP too (no download code at all); it must match its pinned SHA-256.
+MODEL_CANDIDATES = [os.path.join(PLUGIN_DIR, "models", "ggml-base.bin")]
 PINNED_SHA256 = {
     "whisper-cli": "36d865e9bc737838df027a3dc30760d3d6f6bf5dab220a214407e75d905d60bd",
     "ggml-base.bin": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
     "ggml-silero-v6.2.0.bin": "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987",
 }
-# Step 1 still targets WoW Forever's shortcut on the developer's Deck; step 2
-# replaces this with "any focused game".
-EXPECT_APP = "2984795494"
+# Text is typed only while a game is in front: any app except Steam's own interface.
+EXPECT_APP = "game"
 SYSTEM_PYTHON = "/usr/bin/python3"
 PACTL = "/usr/bin/pactl"
 # The engine writes the name of the output it muted here and removes it after

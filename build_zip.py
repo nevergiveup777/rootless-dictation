@@ -14,7 +14,7 @@ Standard library only. Refuses to run as root. Before packaging it checks that:
   setuid, udev or Decky's local server;
 - whisper-cli matches its pinned SHA-256 and is not setuid/setgid;
 - the voice detection and speech models match their pinned SHA-256.
-Writes out/RootlessDictation-<version>[-release].zip and its .sha256. The
+Writes out/RootlessDictation-<version>.zip (release) or -<version>-test.zip, and its .sha256. The
 build channel goes into the ZIP as build.json; it is not a file in the repo.
 """
 import hashlib
@@ -130,7 +130,7 @@ def main():
         sys.exit("usage: python3 -I build_zip.py [--release]")
     channel = "release" if args else "dev"
     version = audit()
-    out = os.path.join(HERE, "out", f"{FOLDER}-{version}{'-release' if channel == 'release' else ''}.zip")
+    out = os.path.join(HERE, "out", f"{FOLDER}-{version}{'' if channel == 'release' else '-test'}.zip")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with zipfile.ZipFile(out, "w") as z:
         for rel in FILES:

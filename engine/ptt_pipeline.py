@@ -26,7 +26,8 @@ Safety:
   SHA-256 matches the pinned values.
 - Reads the controller passively (O_RDONLY via hid_ptt_probe.py). Never writes
   to it or grabs it.
-- Injects only while the expected app (--expect-app) is focused. Never starts a
+- Injects only while a game is in front, not Steam's own menus (or only the
+  app given with --expect-app). Never starts a
   slash command from speech: the only slash it adds is the chat command for a
   channel word spoken first (KEYWORDS), such as "party ..." or "grupo ..."
   becoming "/p ...", or "whisper Name ..." becoming "/w Name ...".
@@ -66,15 +67,15 @@ PINNED_SHA256 = {
 # First spoken word -> WoW chat command. Each language is separate; "auto" uses the
 # detected language (both lists if none was detected). The words follow Decktation's
 # English channel list and its Spanish example (LANGUAGE_CONFIG.md); "responder" is ours.
-# The extra English spellings are mishearings seen on the Deck and in tests: "party"
-# and "yell". Only made-up words, never real words or names.
+# The extra spellings are mishearings seen on the Deck and in tests: "party", "yell"
+# and "hermandad". Only made-up words, never real words or names.
 KEYWORDS = {
     "en": {"party": "/p", "parties": "/p", "parti": "/p", "party's": "/p", "raid": "/raid", "guild": "/g",
            "officer": "/o", "say": "/s", "yell": "/y", "yeal": "/y", "jeal": "/y", "geel": "/y",
            "instance": "/i", "whisper": "/w", "reply": "/r"},
     "es": {"grupo": "/p", "banda": "/raid", "hermandad": "/g", "oficial": "/o", "decir": "/s", "di": "/s",
            "gritar": "/y", "grita": "/y", "instancia": "/i", "susurrar": "/w", "susurra": "/w",
-           "responder": "/r", "responde": "/r", "dí": "/s"},
+           "responder": "/r", "responde": "/r", "dí": "/s", "termandad": "/g"},
 }
 # Vocabulary hint (whisper-cli --prompt): the channel words, so the engine expects
 # them. Tested on Deck recordings of one speaker: channel words 7 -> 13 of
@@ -726,7 +727,8 @@ def main():
     ap.add_argument("--state-dir", help="folder for the mute marker (default: the private runtime folder)")
     ap.add_argument("--seconds", type=float, default=0.0, help="stop after this many seconds (0 = until stopped)")
     ap.add_argument("--threads", type=int, default=4)
-    ap.add_argument("--expect-app", default="2984795494", help="only inject while this app is focused")
+    ap.add_argument("--expect-app", default="game",
+                    help="only inject while this app ID is focused ('game': any app except Steam's interface)")
     ap.add_argument("--from-wav", help="skip buttons and microphone; process this WAV once")
     ap.add_argument("--dry-run", action="store_true", help="check injection, but inject nothing")
     args = ap.parse_args()
@@ -737,7 +739,7 @@ def main():
         sys.exit("--whisper and --model are required (except with --capture)")
     args.combo_list = [b.strip() for b in args.combo.split("+") if b.strip()]
     bad = [b for b in args.combo_list if b not in hid.BUTTON_BITS]
-    if bad or not args.expect_app.isdigit():
+    if bad or not (args.expect_app == "game" or args.expect_app.isdigit()):
         sys.exit(f"bad --combo {bad} or --expect-app")
 
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))

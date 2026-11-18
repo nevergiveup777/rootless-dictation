@@ -186,7 +186,7 @@ function Content() {
         <PanelSectionRow>
           <ToggleField
             label={`Listen for ${combo}`}
-            description="Test version: types into WoW Forever only."
+            description="Types into the chat of the game in front. Made for World of Warcraft."
             checked={s.enabled}
             disabled={busy || choosing}
             onChange={(v) => act(setEnabled(v))}
@@ -367,7 +367,7 @@ function MicIcon() {
 }
 
 export default definePlugin(() => ({
-  name: "Rootless Dictation (dev)",
+  name: "Rootless Dictation",
   titleView: <div className={staticClasses.Title}>Rootless Dictation</div>,
   content: <Content />,
   icon: <MicIcon />,

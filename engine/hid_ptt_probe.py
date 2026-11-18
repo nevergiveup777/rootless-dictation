@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Decktation Rootless - Phase 1, probe B1: read Deck buttons as `deck`.
+"""Rootless Dictation: read the Steam Deck's buttons as the normal `deck` user.
 
-Run on the Steam Deck as the normal `deck` user, in Gaming Mode, with
-WoW Forever focused:
+The engine (ptt_pipeline.py) imports it. Run on its own, it is a button
+checker: on the Steam Deck as the normal `deck` user, in Gaming Mode, with
+the game in front:
 
     /usr/bin/python3 -I hid_ptt_probe.py                 # combo R1+R2, 60 s
     /usr/bin/python3 -I hid_ptt_probe.py --combo L4      # a back grip
@@ -136,7 +137,7 @@ def main():
         return 2
     print(f"OK: reading {path} as uid {os.getuid()} with {mode}")
     print(f"Watching combo {'+'.join(combo)} for {args.seconds:.0f} s. Press it a few times; "
-          f"also try it while WoW Forever's chat box and menus are open.")
+          f"also try it while the game's chat box and menus are open.")
 
     prev, combo_down, combo_count, reports = {}, False, 0, 0
     t0 = time.monotonic()
