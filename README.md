@@ -13,14 +13,21 @@ Independent project, MIT licensed. Not affiliated with or endorsed by Decktation
 
 ## Install
 
-You need a Steam Deck with [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader). Rootless Dictation is not in the Decky store, so you install the ZIP yourself:
+You need a Steam Deck with [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader). Rootless Dictation is not in the Decky store, so you install it yourself:
 
 1. In Gaming Mode, open Decky in the Quick Access Menu, then its settings (the gear). Under **General**, turn on **Developer mode**.
-2. On the Deck, download `RootlessDictation-<version>.zip` from the [latest release](https://github.com/nevergiveup777/rootless-dictation/releases/latest), for example with a web browser in Desktop Mode. Take that file, not the "Source code" archives: those are not the plugin.
-3. Back in Gaming Mode, open Decky's settings, then **Developer**. Under **Third-Party Plugins**, choose **Install Plugin from ZIP File** and pick the ZIP.
-4. Open **Rootless Dictation** in the Quick Access Menu and run the **Self-test**. Every line should be green.
+2. Open **Developer**. Under **Third-Party Plugins**, choose **Install Plugin from URL**, type this link and press **Install**:
 
-To update, install the new ZIP the same way; it replaces the old version. To remove the plugin, uninstall it from Decky's settings, on the **Plugins** page.
+   ```
+   https://github.com/nevergiveup777/rootless-dictation/releases/latest/download/rootlessdictation.zip
+   ```
+
+   It always gets the newest version. A typo does no harm: nothing is installed, so check the link and try again.
+3. Open **Rootless Dictation** in the Quick Access Menu and run the **Self-test**. Every line should be green.
+
+Or with the ZIP file: in Desktop Mode, download `RootlessDictation-<version>.zip` from the [latest release](https://github.com/nevergiveup777/rootless-dictation/releases/latest). Take that file, not the "Source code" archives: those are not the plugin. Then in Gaming Mode, open Decky's settings, then **Developer**, choose **Install Plugin from ZIP File** and pick the ZIP.
+
+To update, install again the same way. It replaces the old version and keeps your settings. To remove the plugin, uninstall it from Decky's settings, on the **Plugins** page.
 
 ## How to use
 
