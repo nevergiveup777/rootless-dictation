@@ -59,7 +59,7 @@ Text is typed only while a game is in front, never into Steam's own menus or the
 
 ## Status
 
-Version 0.4.0, the first public version. It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED. Other games may work if Enter opens their chat and Ctrl+V pastes into it, but they are untested.
+Version 0.4.1, the first public version. It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED. Other games may work if Enter opens their chat and Ctrl+V pastes into it, but they are untested.
 
 ## Building
 

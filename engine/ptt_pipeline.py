@@ -306,44 +306,100 @@ class SoundMute:
 
 class Indicator:
     """The on-screen recording symbol: a child process (overlay.py) that gets
-    one state word per line. If it cannot start, dictation works without it."""
+    one state word per line. Dictation works without it.
+
+    It is started again whenever it ends: at boot Decky starts the engine before
+    Gaming Mode's display exists (Deck logs of 0.3.6 and 0.4.0: "no Gaming Mode
+    (Gamescope) display found" 0.3 s after start), and a Steam restart ends its
+    display connection. Tries back off up to RETRY_DELAYS[-1]; pressing the
+    buttons while it is not running tries at once and replays the current state."""
+
+    RETRY_DELAYS = (2, 2, 4, 8, 15, 30)  # seconds before each new try
+    STEADY = 30          # seconds: a run at least this long counts as working (back-off starts over)
+    REPLAY = ("wait", "talk", "busy")    # states still going on when a new overlay.py starts
 
     def __init__(self, env):
         self.env, self.proc, self.lock = env, None, threading.Lock()
+        self.state, self.last_note, self.thread = "hide", None, None
+        self.stopped, self.wake = threading.Event(), threading.Event()
 
     def start(self):
-        try:
-            self.proc = subprocess.Popen([sys.executable, "-I", os.path.join(HERE, "overlay.py")], env=self.env,
-                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        except OSError as e:
-            log(f"could not start the recording symbol: {e}")
-            return
-        threading.Thread(target=self._report, args=(self.proc,), daemon=True).start()
+        self.thread = threading.Thread(target=self._keep_running, daemon=True)
+        self.thread.start()
+
+    def _note(self, line):
+        """Log a problem once, not again on every try."""
+        if line != self.last_note:
+            self.last_note = line
+            log(line)
+
+    def _keep_running(self):
+        tries = 0
+        while not self.stopped.is_set():
+            self.wake.clear()
+            proc, began = self._spawn(), time.monotonic()
+            if proc is not None and self._report(proc) and time.monotonic() - began >= self.STEADY:
+                tries = 0
+            if self.stopped.is_set():
+                break
+            self.wake.wait(self.RETRY_DELAYS[min(tries, len(self.RETRY_DELAYS) - 1)])
+            tries += 1
+
+    def _spawn(self):
+        with self.lock:
+            if self.stopped.is_set():
+                return None
+            try:
+                proc = subprocess.Popen([sys.executable, "-I", os.path.join(HERE, "overlay.py")], env=self.env,
+                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            except OSError as e:
+                self._note(f"could not start the recording symbol: {e}")
+                return None
+            self.proc = proc
+            if self.state in self.REPLAY:  # the buttons are already held: show it now
+                self._send(self.state)
+            return proc
 
     def _report(self, proc):
+        """Log what overlay.py says until it ends. True if it was working."""
+        ready = False
         for raw in proc.stdout:
             line = raw.decode("utf-8", "replace").strip()
-            if line:
-                log(("could not show the recording symbol: " if line.startswith("UNAVAILABLE") else "recording symbol: ")
-                    + line[:200])
+            if line.startswith("READY"):
+                ready, self.last_note = True, None
+                log("recording symbol: " + line[:200])
+            elif line.startswith("UNAVAILABLE"):
+                self._note("could not show the recording symbol: " + line[:200] + "; trying again in the background")
+            elif line:
+                log("recording symbol: " + line[:200])
         code = proc.wait()
         with self.lock:
             if self.proc is proc:
                 self.proc = None
-        if code not in (0, -signal.SIGTERM, -signal.SIGKILL):
-            log(f"recording symbol stopped (exit {code}); dictation goes on without it")
+        if not self.stopped.is_set() and code != 2:  # 2: UNAVAILABLE, reported above
+            self._note(f"recording symbol stopped unexpectedly (exit {code}); starting it again")
+        return ready
+
+    def _send(self, state):
+        """Caller holds the lock."""
+        try:
+            self.proc.stdin.write(state.encode() + b"\n")
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            self.proc = None
+            self.wake.set()
 
     def show(self, state):
         with self.lock:
-            if self.proc is None:
-                return
-            try:
-                self.proc.stdin.write(state.encode() + b"\n")
-                self.proc.stdin.flush()
-            except (BrokenPipeError, OSError):
-                self.proc = None
+            self.state = state
+            if self.proc is not None:
+                self._send(state)
+            elif state == "wait":  # buttons pressed while it is not running: try now, not after the back-off
+                self.wake.set()
 
     def stop(self):
+        self.stopped.set()
+        self.wake.set()
         with self.lock:
             proc, self.proc = self.proc, None
         if proc is not None:
@@ -353,6 +409,8 @@ class Indicator:
             except (OSError, subprocess.TimeoutExpired):
                 proc.kill()
                 proc.wait()
+        if self.thread is not None and self.thread is not threading.current_thread():
+            self.thread.join(timeout=3)
 
 
 class Pipeline:
