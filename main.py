@@ -48,7 +48,7 @@ PACTL = "/usr/bin/pactl"
 MUTE_MARKER = os.path.join(RUNTIME_DIR, "muted-output")
 SINK_NAME = re.compile(r"^[A-Za-z0-9_.:@-]{1,200}$")
 LANGS = ("en", "es", "auto")
-DEFAULTS = {"enabled": False, "lang": "en", "send": False, "close_chat": True, "mute": True, "indicator": True,
+DEFAULTS = {"enabled": False, "lang": "en", "send": False, "close_chat": False, "mute": True, "indicator": True,
             "combo": ["R1", "R2"]}
 BOOL_SETTINGS = ("send", "close_chat", "mute", "indicator")
 # Button names the engine understands (engine/hid_ptt_probe.py BUTTON_BITS).

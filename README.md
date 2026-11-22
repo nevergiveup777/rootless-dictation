@@ -7,7 +7,7 @@ Hold a button combo on your Steam Deck, speak, release: your words are typed int
 - **No downloads, no self-updater, no telemetry.** Everything, including the speech models, is inside the ZIP (about 140 MB). The plugin never uses the internet.
 - English and Español. Small and readable on purpose.
 
-Made for World of Warcraft's chat. It is tested with WoW Forever on a Steam Deck OLED.
+Made for World of Warcraft's chat. It is tested with WoW retail and WoW Forever on a Steam Deck OLED.
 
 Independent project, MIT licensed. Not affiliated with or endorsed by Decktation, Valve, Blizzard or the Decky Loader team. See `THIRD_PARTY_NOTICES.md`.
 
@@ -58,7 +58,7 @@ The channel word only counts as the first word, so a normal sentence that starts
 
 **Push-to-talk buttons:** choose **Change buttons** and hold the buttons you want. The panel shows the buttons you are holding and tells you when to let go. A back button (L4, R4, L5, R5) works on its own; other buttons need a combination of two or three.
 
-**Send automatically** presses Enter for you after typing. When it is off, check the text and send it yourself. **Close chat after sending** (on by default) then presses Esc, because in WoW Forever the chat box stays open after sending. Turn it off if your chat box closes by itself, because Esc would then open the game menu.
+**Send automatically** presses Enter for you after typing. When it is off, check the text and send it yourself. **Close chat after sending** (off by default) then presses Esc. Leave it off for WoW retail, where the chat box closes by itself after sending: there, Esc would open the game menu. Turn it on if your chat box stays open after sending, as in WoW Forever.
 
 **Mute game sound while talking** (on by default) silences the Deck's sound output only while the microphone is listening, because game sound makes speech recognition much worse. The sound comes back about half a second after you release, and also after a crash.
 
@@ -66,7 +66,7 @@ Text is typed only while a game is in front, never into Steam's own menus or the
 
 ## Status
 
-Version 0.4.3. It is tested only with World of Warcraft (WoW Forever) on one Steam Deck OLED. Other games may work if Enter opens their chat and Ctrl+V pastes into it, but they are untested.
+Version 0.4.4. It is tested only with World of Warcraft (retail and WoW Forever) on one Steam Deck OLED. Other games may work if Enter opens their chat and Ctrl+V pastes into it, but they are untested.
 
 ## Building
 

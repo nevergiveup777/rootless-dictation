@@ -238,7 +238,7 @@ function Content() {
               description={
                 s.settings.close_chat
                   ? "Presses Esc after sending, like B, so the chat box closes. Turn this off if your chat box already closes by itself: then Esc would open the game menu."
-                  : "The chat box stays as the game leaves it after sending."
+                  : "The chat box stays as the game leaves it after sending. Right for WoW retail, where it closes by itself. Turn this on if it stays open, as in WoW Forever."
               }
               checked={s.settings.close_chat}
               disabled={busy}
