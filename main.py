@@ -78,6 +78,7 @@ def build_channel():
 # switch and keep only errors and start/stop lines, so logs stay tiny.
 RELEASE = build_channel() == "release"
 STOP_GRACE = 3.0
+UNLOAD_GRACE = 1.5  # Decky kills the plugin 5 s after asking it to stop; the engine needs ~0.05 s
 
 # Children get a minimal, explicit environment. Decky's frozen Python sets
 # LD_LIBRARY_PATH to its own bundle, which must not leak into /usr/bin/python3.
@@ -178,6 +179,34 @@ def pactl(*args):
     return r.stdout.decode("utf-8", "replace").strip(), ""
 
 
+def end_group_now(pid, grace):
+    """Stop the process group led by `pid` (SIGTERM, then SIGKILL after `grace` s) and
+    reap the leader, blocking, without the event loop. Returns its exit code, or None
+    if it was reaped elsewhere (asyncio's child watcher)."""
+    def signal_group(sig):
+        try:
+            os.killpg(pid, sig)
+        except ProcessLookupError:
+            pass
+
+    def reap(flags):
+        try:
+            got, status = os.waitpid(pid, flags)
+        except ChildProcessError:
+            return True, None
+        return got == pid, (os.waitstatus_to_exitcode(status) if got == pid else None)
+
+    signal_group(signal.SIGTERM)
+    end = time.monotonic() + grace
+    while time.monotonic() < end:
+        done, code = reap(os.WNOHANG)
+        if done:
+            return code
+        time.sleep(0.02)
+    signal_group(signal.SIGKILL)
+    return reap(0)[1]
+
+
 def restore_sound():
     """Unmute the output the engine muted if the engine could not do it itself
     (crash, forced stop, power loss). Returns a message, or "" if nothing to do."""
@@ -258,18 +287,16 @@ class Plugin:
             await self._start()
 
     async def _unload(self):
+        """Never awaits. When Decky 3.3.1 stops a plugin it closes its socket, and the
+        plugin side's read loop (localsocket.py, _listen_for_method_call) then spins on
+        end of file without ever yielding, so nothing awaited here would finish: Decky
+        killed the plugin 5 s later on every Deck stop since 0.4.0, with the engine left
+        unreaped and _uninstall never run."""
         self.unloading = True
-        if self.capture_proc is not None and self.capture_proc.returncode is None:
-            self._signal(self.capture_proc, signal.SIGKILL)
-        if self.capture_task is not None:
-            try:
-                await asyncio.wait_for(self.capture_task, STOP_GRACE)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                self.capture_task.cancel()
-        await self._stop()
+        self._stop_now()
 
     async def _uninstall(self):
-        await self._stop()
+        self._stop_now()  # never awaits, see _unload
         try:
             remove_own_logs()
         except OSError as e:
@@ -480,6 +507,22 @@ class Plugin:
         self.proc, self.reader = None, None
         self.phase, self.error = "off", ""
         await self._restore_sound()
+
+    def _stop_now(self):
+        """Stop choosing buttons and the engine without the event loop (see _unload)."""
+        if self.capture_proc is not None and self.capture_proc.returncode is None:
+            end_group_now(self.capture_proc.pid, 0.0)
+        proc = self.proc
+        if proc is not None and proc.returncode is None:
+            self._log(f"engine exited ({end_group_now(proc.pid, UNLOAD_GRACE)}) while unloading")
+        self.proc, self.reader, self.capture_proc = None, None, None
+        self.phase, self.error = "off", ""
+        try:
+            msg = restore_sound()
+        except Exception as e:  # never let this break unloading
+            msg = f"could not restore game sound: {e!r}"
+        if msg:
+            self._log(msg)
 
     async def _restore_sound(self):
         try:
