@@ -311,8 +311,9 @@ class Indicator:
     It is started again whenever it ends: at boot Decky starts the engine before
     Gaming Mode's display exists (Deck logs of 0.3.6 and 0.4.0: "no Gaming Mode
     (Gamescope) display found" 0.3 s after start), and a Steam restart ends its
-    display connection. Tries back off up to RETRY_DELAYS[-1]; pressing the
-    buttons while it is not running tries at once and replays the current state."""
+    display connection (overlay.py then exits at once, also while hidden). Tries
+    back off up to RETRY_DELAYS[-1]; each new state of a press (wait, talk, busy)
+    while it is not running tries at once and replays the current state."""
 
     RETRY_DELAYS = (2, 2, 4, 8, 15, 30)  # seconds before each new try
     STEADY = 30          # seconds: a run at least this long counts as working (back-off starts over)
@@ -394,7 +395,7 @@ class Indicator:
             self.state = state
             if self.proc is not None:
                 self._send(state)
-            elif state == "wait":  # buttons pressed while it is not running: try now, not after the back-off
+            elif state in self.REPLAY:  # a press while it is not running: try now, not after the back-off
                 self.wake.set()
 
     def stop(self):

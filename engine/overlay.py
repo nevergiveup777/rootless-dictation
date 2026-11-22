@@ -11,7 +11,8 @@ Draws a small microphone symbol at the top of the screen, over the game:
     hide
 
 It reads one state word per line on stdin and exits when stdin closes, so it
-never outlives the engine. Usage:
+never outlives the engine. It also exits as soon as its display closes, even
+while hidden; the engine then starts a new one. Usage:
 
     /usr/bin/python3 -I overlay.py            # normal use, states on stdin
     /usr/bin/python3 -I overlay.py --check    # show the symbol for 1.5 s and report
@@ -114,6 +115,7 @@ def load_x():
         "XClearWindow": ([vp, ul], ctypes.c_int),
         "XDestroyWindow": ([vp, ul], ctypes.c_int), "XFlush": ([vp], ctypes.c_int),
         "XSync": ([vp, ctypes.c_int], ctypes.c_int), "XPending": ([vp], ctypes.c_int),
+        "XConnectionNumber": ([vp], ctypes.c_int), "XNextEvent": ([vp, vp], ctypes.c_int),
         "XSetErrorHandler": ([ERROR_HANDLER], vp),
     }
     for name, (args, res) in sig.items():
@@ -332,6 +334,15 @@ class Overlay:
         self.x.XCloseDisplay(self.dpy)
 
 
+def drain_x(x, dpy, event):
+    """Read what the X server sent. If the display has closed (Gaming Mode
+    restarted, or the Deck switched to Desktop Mode), Xlib reports a fatal IO
+    error here and ends this process, so the engine starts a new one at once,
+    not at the next button press (Deck test of 0.4.1)."""
+    while x.XPending(dpy):
+        x.XNextEvent(dpy, event)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--check", action="store_true", help="show the symbol for 1.5 s, report, exit")
@@ -373,10 +384,13 @@ def main():
         return 0 if not X_ERRORS else 1
 
     state, since, tick, buf = "hide", time.monotonic(), 0, b""
-    fd = sys.stdin.fileno()
+    fd, xfd = sys.stdin.fileno(), x.XConnectionNumber(ov.dpy)
+    event = ctypes.create_string_buffer(256)  # an XEvent is 192 bytes on 64-bit
     while True:
-        r, _, _ = select.select([fd], [], [], FRAME)
-        if r:
+        r, _, _ = select.select([fd, xfd], [], [], FRAME)
+        if xfd in r:  # also while hidden, when nothing else talks to the display
+            drain_x(x, ov.dpy, event)
+        if fd in r:
             data = os.read(fd, 256)
             if not data:
                 break  # the engine is gone
